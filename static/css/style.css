@@ -1,0 +1,321 @@
+/* IoT Network Visualizer Styles */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 2px solid #e9ecef;
+    font-weight: 600;
+}
+
+/* Network Visualization Styles */
+#networkVisualization {
+    height: calc(100vh - 120px); /* Full viewport height minus navbar and margins */
+    min-height: 600px;
+    background-color: #fafafa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.network-svg {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+.network-svg:active {
+    cursor: grabbing;
+}
+
+/* Node styles */
+.node {
+    cursor: pointer;
+    stroke: #fff;
+    stroke-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.node:hover {
+    stroke: #007bff;
+    stroke-width: 3px;
+}
+
+.node.selected {
+    stroke: #dc3545;
+    stroke-width: 4px;
+}
+
+/* Link styles */
+.link {
+    stroke: #999;
+    stroke-opacity: 0.6;
+    stroke-width: 1px;
+}
+
+.link.highlighted {
+    stroke: #007bff;
+    stroke-opacity: 0.8;
+    stroke-width: 2px;
+}
+
+/* Node labels */
+.node-label {
+    font-size: 10px;
+    font-weight: bold;
+    fill: #333;
+    text-anchor: middle;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.node-label.visible {
+    opacity: 1;
+}
+
+/* Node range circles */
+.range-circle {
+    fill: none;
+    stroke: #007bff;
+    stroke-width: 1px;
+    stroke-dasharray: 3,3;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.range-circle.visible {
+    opacity: 0.3;
+}
+
+/* Statistics Panel */
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.stat-value {
+    font-weight: bold;
+    color: #007bff;
+}
+
+/* Node Details */
+.node-detail-item {
+    margin-bottom: 10px;
+}
+
+.node-detail-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9em;
+}
+
+.node-detail-value {
+    color: #212529;
+    margin-left: 10px;
+}
+
+.neighbor-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px;
+    background-color: #f8f9fa;
+}
+
+.neighbor-item {
+    font-size: 0.85em;
+    padding: 4px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.neighbor-item:last-child {
+    border-bottom: none;
+}
+
+/* Legend */
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 10px;
+    display: inline-block;
+}
+
+/* Controls */
+.controls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+}
+
+.control-btn {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #dee2e6;
+    padding: 8px 12px;
+    margin: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #networkVisualization {
+        height: calc(100vh - 140px); /* Adjust for mobile navbar */
+        min-height: 400px;
+    }
+    
+    .stat-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .stat-value {
+        margin-top: 4px;
+    }
+}
+
+/* Toast notifications */
+.toast {
+    min-width: 300px;
+}
+
+/* Modal adjustments */
+.modal-body .form-control {
+    font-size: 0.9em;
+}
+
+/* Tooltip styles */
+.tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+/* Network statistics chart */
+.chart-container {
+    width: 100%;
+    height: 200px;
+    margin: 10px 0;
+}
+
+/* Button animations */
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Card hover effects */
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+/* Full height layout adjustments */
+.statistics-column {
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.statistics-column::-webkit-scrollbar {
+    width: 6px;
+}
+
+.statistics-column::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.statistics-column::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.statistics-column::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
