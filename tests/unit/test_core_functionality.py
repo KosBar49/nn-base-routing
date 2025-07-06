@@ -4,8 +4,9 @@ Test script to verify the refactored IoT network generation.
 Tests that nodes can connect using only max_range parameter.
 """
 
-from generate_network import generate_random_network
-from iot_node import IoTNode, IoTNetwork
+from src.iot_network_routing.core.generator import generate_random_network
+from src.iot_network_routing.core.node import IoTNode
+from src.iot_network_routing.core.network import IoTNetwork
 
 def test_basic_functionality():
     """Test basic network generation functionality."""

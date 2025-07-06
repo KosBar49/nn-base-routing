@@ -4,8 +4,9 @@ Test script to verify the improved color legend matches the actual network gener
 This creates networks with different connectivity levels to test all color ranges.
 """
 
-from generate_network import generate_random_network
-from iot_node import IoTNode, IoTNetwork
+from src.iot_network_routing.core.generator import generate_random_network
+from src.iot_network_routing.core.node import IoTNode
+from src.iot_network_routing.core.network import IoTNetwork
 import json
 
 def create_test_networks():
