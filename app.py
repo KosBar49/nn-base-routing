@@ -42,7 +42,6 @@ def calculate_network_stats(network: IoTNetwork) -> Dict[str, Any]:
     ranges = [node.communication_range for node in network.nodes]
     avg_range = sum(ranges) / len(ranges) if ranges else 0
     max_range = max(ranges) if ranges else 0
-    min_range = min(ranges) if ranges else 0
     
     # Connectivity distribution
     connectivity_dist = {}
@@ -63,8 +62,7 @@ def calculate_network_stats(network: IoTNetwork) -> Dict[str, Any]:
         },
         "range_stats": {
             "avg_range": round(avg_range, 2),
-            "max_range": round(max_range, 2),
-            "min_range": round(min_range, 2)
+            "max_range": round(max_range, 2)
         },
         "connectivity_distribution": connectivity_dist
     }
@@ -87,7 +85,7 @@ def prepare_network_data_for_d3(network: IoTNetwork) -> Dict[str, Any]:
             "y": node.y,
             "range": node.communication_range,
             "neighbors": len(node.neighbors),
-            "group": min(len(node.neighbors), 5)  # Group by connectivity (max 5)
+            "group": min(len(node.neighbors), 8)  # Group by connectivity (max 8)
         })
     
     # Prepare links
@@ -279,7 +277,6 @@ def generate_network():
         n_nodes = data.get('nodes', 25)
         width = data.get('width', 500)
         height = data.get('height', 500)
-        min_range = data.get('min_range', 60)
         max_range = data.get('max_range', 120)
         
         # Import and use the generation function
@@ -289,7 +286,6 @@ def generate_network():
             n_nodes=n_nodes,
             map_width=width,
             map_height=height,
-            min_range=min_range,
             max_range=max_range
         )
         

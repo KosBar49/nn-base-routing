@@ -166,11 +166,11 @@ class IoTNetwork:
         # Create bidirectional connections
         for i, node1 in enumerate(self.nodes):
             for j, node2 in enumerate(self.nodes[i+1:], i+1):
-                # Check if nodes can communicate (use the smaller range for conservative approach)
+                # Check if nodes can communicate (use the maximum range for broader connectivity)
                 distance = node1.distance_to(node2)
-                min_range = min(node1.communication_range, node2.communication_range)
+                max_range = max(node1.communication_range, node2.communication_range)
                 
-                if distance <= min_range:
+                if distance <= max_range:
                     # Add bidirectional connection
                     if node2 not in node1.neighbors:
                         node1.neighbors.append(node2)

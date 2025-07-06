@@ -13,7 +13,6 @@ from iot_node import IoTNode, IoTNetwork
 def generate_random_network(n_nodes: int, 
                           map_width: float = 1000.0, 
                           map_height: float = 1000.0,
-                          min_range: float = 50.0,
                           max_range: float = 150.0,
                           seed: int = None) -> IoTNetwork:
     """
@@ -23,7 +22,6 @@ def generate_random_network(n_nodes: int,
         n_nodes: Number of nodes to generate
         map_width: Width of the 2D map
         map_height: Height of the 2D map
-        min_range: Minimum communication range
         max_range: Maximum communication range
         seed: Random seed for reproducible results
     
@@ -37,13 +35,14 @@ def generate_random_network(n_nodes: int,
     
     print(f"Generating {n_nodes} random IoT nodes...")
     print(f"Map dimensions: {map_width} x {map_height}")
-    print(f"Communication range: {min_range} - {max_range}")
+    print(f"Communication range: up to {max_range}")
     
     # Generate nodes with random positions and ranges
     for i in range(n_nodes):
         x = random.uniform(0, map_width)
         y = random.uniform(0, map_height)
-        comm_range = random.uniform(min_range, max_range)
+        # Use a range from 30% to 100% of max_range for variety
+        comm_range = random.uniform(max_range * 0.3, max_range)
         
         node = IoTNode(x, y, comm_range)
         network.add_node(node)
@@ -93,8 +92,6 @@ def main():
                        help='Map width (default: 1000.0)')
     parser.add_argument('--height', type=float, default=1000.0,
                        help='Map height (default: 1000.0)')
-    parser.add_argument('--min-range', type=float, default=50.0,
-                       help='Minimum communication range (default: 50.0)')
     parser.add_argument('--max-range', type=float, default=150.0,
                        help='Maximum communication range (default: 150.0)')
     parser.add_argument('-s', '--seed', type=int, 
@@ -112,7 +109,6 @@ def main():
             n_nodes=args.n_nodes,
             map_width=args.width,
             map_height=args.height,
-            min_range=args.min_range,
             max_range=args.max_range,
             seed=args.seed
         )

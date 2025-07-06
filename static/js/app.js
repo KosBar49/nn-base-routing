@@ -117,13 +117,12 @@ class IoTNetworkApp {
             nodes: parseInt(document.getElementById('numNodes').value),
             width: parseInt(document.getElementById('mapWidth').value),
             height: parseInt(document.getElementById('mapHeight').value),
-            min_range: parseInt(document.getElementById('minRange').value),
             max_range: parseInt(document.getElementById('maxRange').value)
         };
         
         // Validate inputs
-        if (formData.min_range >= formData.max_range) {
-            this.showToast('error', 'Minimum range must be less than maximum range');
+        if (formData.max_range <= 0) {
+            this.showToast('error', 'Maximum range must be greater than 0');
             return;
         }
         

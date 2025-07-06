@@ -17,9 +17,20 @@ class NetworkVisualizer {
         this.height = 0;
         
         // Color scheme for different connectivity levels
+        // Improved color palette with better contrast and more colors
         this.colorScale = d3.scaleOrdinal()
-            .domain([0, 1, 2, 3, 4, 5])
-            .range(['#ff6b6b', '#ffa726', '#42a5f5', '#66bb6a', '#26c6da', '#ab47bc']);
+            .domain([0, 1, 2, 3, 4, 5, 6, 7, 8])
+            .range([
+                '#e74c3c',  // Red - Isolated (0 connections)
+                '#f39c12',  // Orange - Very Low (1 connection)
+                '#f1c40f',  // Yellow - Low (2 connections)  
+                '#2ecc71',  // Green - Medium (3 connections)
+                '#3498db',  // Blue - Good (4 connections)
+                '#9b59b6',  // Purple - High (5 connections)
+                '#e91e63',  // Pink - Very High (6 connections)
+                '#795548',  // Brown - Extremely High (7 connections)
+                '#607d8b'   // Blue Grey - Maximum (8+ connections)
+            ]);
         
         this.initializeVisualization();
     }
@@ -166,7 +177,7 @@ class NetworkVisualizer {
         nodes.enter().append('circle')
             .attr('class', 'node')
             .attr('r', d => Math.max(8, d.neighbors * 2 + 5))
-            .attr('fill', d => this.colorScale(Math.min(d.group, 5)))
+            .attr('fill', d => this.colorScale(Math.min(d.neighbors, 8)))
             .call(this.createDragBehavior())
             .on('click', (event, d) => this.selectNode(d))
             .on('mouseover', (event, d) => this.showTooltip(event, d))

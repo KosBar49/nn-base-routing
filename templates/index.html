@@ -108,20 +108,40 @@
                     </div>
                     <div class="card-body">
                         <div class="legend-item">
-                            <span class="legend-color" style="background-color: #ff6b6b;"></span>
+                            <span class="legend-color" style="background-color: #e74c3c;"></span>
                             <span>Isolated (0 connections)</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-color" style="background-color: #ffa726;"></span>
-                            <span>Low (1-2 connections)</span>
+                            <span class="legend-color" style="background-color: #f39c12;"></span>
+                            <span>Very Low (1 connection)</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-color" style="background-color: #42a5f5;"></span>
-                            <span>Medium (3-4 connections)</span>
+                            <span class="legend-color" style="background-color: #f1c40f;"></span>
+                            <span>Low (2 connections)</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-color" style="background-color: #66bb6a;"></span>
-                            <span>High (5+ connections)</span>
+                            <span class="legend-color" style="background-color: #2ecc71;"></span>
+                            <span>Medium (3 connections)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #3498db;"></span>
+                            <span>Good (4 connections)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #9b59b6;"></span>
+                            <span>High (5 connections)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #e91e63;"></span>
+                            <span>Very High (6 connections)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #795548;"></span>
+                            <span>Extremely High (7 connections)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background-color: #607d8b;"></span>
+                            <span>Maximum (8+ connections)</span>
                         </div>
                     </div>
                 </div>
@@ -158,16 +178,11 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label for="minRange" class="form-label">Min Range</label>
-                                    <input type="number" class="form-control" id="minRange" value="60" min="10">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="maxRange" class="form-label">Max Range</label>
+                                    <label for="maxRange" class="form-label">Communication Range</label>
                                     <input type="number" class="form-control" id="maxRange" value="120" min="20">
+                                    <div class="form-text">Maximum distance for node communication. Nodes within this range can connect to each other.</div>
                                 </div>
                             </div>
                         </div>
