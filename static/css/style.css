@@ -319,3 +319,73 @@ body {
 .statistics-column::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+/* Path Finder Styles */
+.path-nodes {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    word-break: break-all;
+    margin-top: 8px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.path-nodes span {
+    display: inline-block;
+    margin: 2px 4px;
+    font-weight: 500;
+}
+
+/* Path Visualization Styles */
+.path-link {
+    stroke: #ff6b35;
+    stroke-width: 4;
+    stroke-dasharray: 10,5;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+.path-arrow {
+    stroke: #ff6b35;
+    stroke-width: 2;
+    fill: none;
+    opacity: 0.9;
+    pointer-events: none;
+}
+
+/* Path node highlights */
+.node.path-source {
+    stroke: #28a745 !important;
+    stroke-width: 3px !important;
+}
+
+.node.path-destination {
+    stroke: #dc3545 !important;
+    stroke-width: 3px !important;
+}
+
+.node.path-intermediate {
+    stroke: #ff6b35 !important;
+    stroke-width: 3px !important;
+}
+
+/* Path result styling */
+#pathResult .alert {
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+#pathResult .alert-success {
+    background-color: #d1edff;
+    color: #0c5460;
+    border-left: 4px solid #28a745;
+}
+
+#pathResult .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
