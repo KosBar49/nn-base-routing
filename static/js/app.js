@@ -5,6 +5,7 @@ class IoTNetworkApp {
         this.visualizer = null;
         this.currentNetwork = null;
         this.currentStats = null;
+        this.currentPath = null;
         
         this.initializeApp();
     }
@@ -32,6 +33,8 @@ class IoTNetworkApp {
         window.resetZoom = () => this.visualizer.resetZoom();
         window.toggleLabels = () => this.visualizer.toggleLabels();
         window.updateNodeDetails = (node) => this.updateNodeDetails(node);
+        window.findPath = () => this.findPath();
+        window.clearPath = () => this.clearPath();
     }
     
     async loadSampleNetwork() {
@@ -98,6 +101,8 @@ class IoTNetworkApp {
                 this.currentNetwork = data;
                 this.visualizer.loadNetworkData(data);
                 this.clearNodeDetails(); // Clear node details when loading new network
+                this.populateNodeSelectors(); // Populate path finder dropdowns
+                this.clearPath(); // Clear any existing path
             } else {
                 throw new Error(data.error || 'Failed to load network data');
             }
@@ -337,6 +342,221 @@ class IoTNetworkApp {
         const loadingOverlay = document.querySelector('.loading-overlay');
         if (loadingOverlay) {
             loadingOverlay.remove();
+        }
+    }
+    
+    populateNodeSelectors() {
+        const sourceInput = document.getElementById('sourceNode');
+        const destinationInput = document.getElementById('destinationNode');
+        const sourceDatalist = document.getElementById('sourceNodeOptions');
+        const destinationDatalist = document.getElementById('destinationNodeOptions');
+        
+        // Clear existing options
+        sourceDatalist.innerHTML = '';
+        destinationDatalist.innerHTML = '';
+        
+        if (!this.currentNetwork || !this.currentNetwork.nodes) {
+            sourceInput.disabled = true;
+            destinationInput.disabled = true;
+            document.getElementById('findPathBtn').disabled = true;
+            return;
+        }
+        
+        // Populate datalists with node data
+        this.currentNetwork.nodes.forEach(node => {
+            const optionText = `${node.eui64} (${node.neighbors} connections)`;
+            
+            const sourceOption = document.createElement('option');
+            sourceOption.value = node.eui64;
+            sourceOption.textContent = optionText;
+            sourceDatalist.appendChild(sourceOption);
+            
+            const destOption = document.createElement('option');
+            destOption.value = node.eui64;
+            destOption.textContent = optionText;
+            destinationDatalist.appendChild(destOption);
+        });
+        
+        // Enable inputs
+        sourceInput.disabled = false;
+        destinationInput.disabled = false;
+        
+        // Add input listeners to enable/disable find button and validate nodes
+        const updateFindButton = () => {
+            const sourceValue = this.getValidNodeId(sourceInput.value);
+            const destValue = this.getValidNodeId(destinationInput.value);
+            
+            // Update input styling based on validity
+            this.updateInputValidation(sourceInput, sourceValue);
+            this.updateInputValidation(destinationInput, destValue);
+            
+            document.getElementById('findPathBtn').disabled = !sourceValue || !destValue || sourceValue === destValue;
+        };
+        
+        // Remove any existing listeners to prevent duplicates
+        sourceInput.removeEventListener('input', updateFindButton);
+        destinationInput.removeEventListener('input', updateFindButton);
+        
+        sourceInput.addEventListener('input', updateFindButton);
+        destinationInput.addEventListener('input', updateFindButton);
+    }
+    
+    getValidNodeId(inputValue) {
+        if (!inputValue || !this.currentNetwork || !this.currentNetwork.nodes) {
+            return null;
+        }
+        
+        // Check if input value exactly matches a node ID
+        const exactMatch = this.currentNetwork.nodes.find(node => node.eui64 === inputValue);
+        if (exactMatch) {
+            return inputValue;
+        }
+        
+        // Check if input value is a partial match or contains the node ID
+        const partialMatch = this.currentNetwork.nodes.find(node => 
+            inputValue.includes(node.eui64) || node.eui64.includes(inputValue)
+        );
+        
+        if (partialMatch && inputValue.length >= 8) { // Require at least 8 characters for partial match
+            return partialMatch.eui64;
+        }
+        
+        return null;
+    }
+    
+    updateInputValidation(input, isValid) {
+        if (!input.value) {
+            // No input - neutral state
+            input.classList.remove('is-valid', 'is-invalid');
+        } else if (isValid) {
+            // Valid input
+            input.classList.remove('is-invalid');
+            input.classList.add('is-valid');
+        } else {
+            // Invalid input
+            input.classList.remove('is-valid');
+            input.classList.add('is-invalid');
+        }
+    }
+    
+    async findPath() {
+        const sourceInput = document.getElementById('sourceNode').value;
+        const destinationInput = document.getElementById('destinationNode').value;
+        
+        // Validate and get actual node IDs
+        const sourceId = this.getValidNodeId(sourceInput);
+        const destinationId = this.getValidNodeId(destinationInput);
+        
+        if (!sourceId || !destinationId) {
+            this.showToast('error', 'Please enter valid source and destination nodes');
+            return;
+        }
+        
+        if (sourceId === destinationId) {
+            this.showToast('error', 'Source and destination must be different nodes');
+            return;
+        }
+        
+        try {
+            this.showLoading();
+            
+            const response = await fetch('/api/find_path', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source: sourceId,
+                    destination: destinationId
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.currentPath = data;
+                this.displayPathResult(data);
+                
+                if (data.reachable && this.visualizer.highlightPath) {
+                    this.visualizer.highlightPath(data.path_indices);
+                }
+                
+                this.showToast('success', data.reachable ? 
+                    `Path found: ${data.hop_count} hops, distance ${data.distance}` : 
+                    'No path found between selected nodes');
+            } else {
+                this.showToast('error', data.error);
+            }
+        } catch (error) {
+            this.showToast('error', 'Failed to find path');
+            console.error('Error finding path:', error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    displayPathResult(pathData) {
+        const resultContainer = document.getElementById('pathResult');
+        const clearBtn = document.getElementById('clearPathBtn');
+        
+        if (!pathData.reachable) {
+            resultContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>No Path Found</strong><br>
+                    No route exists between the selected nodes.
+                </div>
+            `;
+        } else {
+            const pathNodes = pathData.path.map((nodeId, index) => {
+                const isFirst = index === 0;
+                const isLast = index === pathData.path.length - 1;
+                const icon = isFirst ? 'fas fa-play' : (isLast ? 'fas fa-flag-checkered' : 'fas fa-circle');
+                const className = isFirst ? 'text-success' : (isLast ? 'text-danger' : 'text-primary');
+                
+                return `<span class="${className}"><i class="${icon}"></i> ${nodeId.substring(0, 8)}...</span>`;
+            }).join(' → ');
+            
+            resultContainer.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Path Found!</strong><br>
+                    <small><strong>Distance:</strong> ${pathData.distance} hops</small><br>
+                    <small><strong>Nodes:</strong> ${pathData.path.length}</small>
+                </div>
+                <div class="path-visualization">
+                    <strong>Route:</strong><br>
+                    <div class="path-nodes">${pathNodes}</div>
+                </div>
+            `;
+        }
+        
+        resultContainer.style.display = 'block';
+        clearBtn.style.display = 'inline-block';
+    }
+    
+    clearPath() {
+        this.currentPath = null;
+        
+        // Clear UI elements
+        document.getElementById('pathResult').style.display = 'none';
+        document.getElementById('clearPathBtn').style.display = 'none';
+        
+        const sourceInput = document.getElementById('sourceNode');
+        const destinationInput = document.getElementById('destinationNode');
+        
+        sourceInput.value = '';
+        destinationInput.value = '';
+        
+        // Remove validation classes
+        sourceInput.classList.remove('is-valid', 'is-invalid');
+        destinationInput.classList.remove('is-valid', 'is-invalid');
+        
+        document.getElementById('findPathBtn').disabled = true;
+        
+        // Clear path visualization
+        if (this.visualizer && this.visualizer.clearPath) {
+            this.visualizer.clearPath();
         }
     }
 }

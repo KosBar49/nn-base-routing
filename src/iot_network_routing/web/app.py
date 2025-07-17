@@ -12,6 +12,7 @@ from typing import Dict, List, Any, Optional
 from ..core.network import IoTNetwork
 from ..core.node import IoTNode
 from ..core.generator import generate_random_network
+from ..utils.pathfinder import PathFinder
 
 
 def create_app(config: Optional[Dict] = None) -> Flask:
@@ -321,5 +322,72 @@ def create_app(config: Optional[Dict] = None) -> Flask:
             
         except Exception as e:
             return jsonify({"error": f"Failed to export network: {str(e)}"}), 500
+
+    @app.route('/api/find_path', methods=['POST'])
+    def find_path():
+        """Find shortest path between two nodes."""
+        nonlocal current_network
+        
+        if not current_network:
+            return jsonify({"error": "No network loaded"}), 404
+        
+        try:
+            data = request.get_json()
+            source_id = data.get('source')
+            destination_id = data.get('destination')
+            
+            if not source_id or not destination_id:
+                return jsonify({"error": "Source and destination node IDs are required"}), 400
+            
+            # Verify nodes exist in network
+            node_ids = [node.eui64 for node in current_network.nodes]
+            if source_id not in node_ids:
+                return jsonify({"error": f"Source node {source_id} not found"}), 404
+            if destination_id not in node_ids:
+                return jsonify({"error": f"Destination node {destination_id} not found"}), 404
+            
+            if source_id == destination_id:
+                return jsonify({"error": "Source and destination cannot be the same node"}), 400
+            
+            # Create temporary network file for pathfinder
+            temp_path = "/tmp/temp_network.json"
+            current_network.save_to_file(temp_path)
+            
+            # Use pathfinder to find path
+            pathfinder = PathFinder(temp_path)
+            pathfinder.load_network()
+            pathfinder.initialize()
+            
+            path, distance = pathfinder.find_path(source_id, destination_id)
+            
+            # Clean up temp file
+            os.remove(temp_path)
+            
+            if path is None:
+                return jsonify({
+                    "source": source_id,
+                    "destination": destination_id,
+                    "path": None,
+                    "distance": float('inf'),
+                    "reachable": False,
+                    "message": "No path found between nodes"
+                })
+            
+            # Convert path to include node indices for visualization
+            node_id_to_index = {node.eui64: i for i, node in enumerate(current_network.nodes)}
+            path_indices = [node_id_to_index[node_id] for node_id in path]
+            
+            return jsonify({
+                "source": source_id,
+                "destination": destination_id,
+                "path": path,
+                "path_indices": path_indices,
+                "distance": distance,
+                "reachable": True,
+                "hop_count": len(path) - 1
+            })
+            
+        except Exception as e:
+            return jsonify({"error": f"Failed to find path: {str(e)}"}), 500
 
     return app

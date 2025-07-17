@@ -12,6 +12,7 @@ class NetworkVisualizer {
         this.showLabels = false;
         this.showRanges = false;
         this.zoomBehavior = null;
+        this.highlightedPath = null;
         
         this.width = 0;
         this.height = 0;
@@ -65,6 +66,7 @@ class NetworkVisualizer {
         
         // Create groups for different elements
         this.linksGroup = this.mainGroup.append('g').attr('class', 'links');
+        this.pathGroup = this.mainGroup.append('g').attr('class', 'path-links');
         this.rangesGroup = this.mainGroup.append('g').attr('class', 'ranges');
         this.nodesGroup = this.mainGroup.append('g').attr('class', 'nodes');
         this.labelsGroup = this.mainGroup.append('g').attr('class', 'labels');
@@ -225,6 +227,9 @@ class NetworkVisualizer {
         this.labelsGroup.selectAll('.node-label')
             .attr('x', d => d.x)
             .attr('y', d => d.y);
+        
+        // Update path positions if a path is highlighted
+        this.updatePathPosition();
     }
     
     createDragBehavior() {
@@ -408,6 +413,145 @@ class NetworkVisualizer {
             this.simulation.force('center', d3.forceCenter(this.width / 2, this.height / 2));
             this.simulation.alpha(0.3).restart();
         }
+    }
+    
+    highlightPath(pathIndices) {
+        if (!pathIndices || pathIndices.length < 2) {
+            this.clearPath();
+            return;
+        }
+        
+        this.highlightedPath = pathIndices;
+        
+        // Clear existing path highlights
+        this.pathGroup.selectAll('*').remove();
+        
+        // Create path links
+        const pathLinks = [];
+        for (let i = 0; i < pathIndices.length - 1; i++) {
+            const sourceIndex = pathIndices[i];
+            const targetIndex = pathIndices[i + 1];
+            
+            pathLinks.push({
+                source: this.nodes[sourceIndex],
+                target: this.nodes[targetIndex],
+                index: i
+            });
+        }
+        
+        // Draw path links
+        this.pathGroup.selectAll('.path-link')
+            .data(pathLinks)
+            .enter().append('line')
+            .attr('class', 'path-link')
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y)
+            .attr('stroke', '#ff6b35')
+            .attr('stroke-width', 4)
+            .attr('stroke-dasharray', '10,5')
+            .style('opacity', 0)
+            .transition()
+            .duration(300)
+            .delay((d, i) => i * 100)
+            .style('opacity', 0.8);
+        
+        // Highlight path nodes
+        this.nodesGroup.selectAll('.node')
+            .style('stroke', (d, i) => {
+                if (pathIndices.includes(i)) {
+                    if (i === pathIndices[0]) return '#28a745'; // Green for source
+                    if (i === pathIndices[pathIndices.length - 1]) return '#dc3545'; // Red for destination
+                    return '#ff6b35'; // Orange for intermediate nodes
+                }
+                return '#fff';
+            })
+            .style('stroke-width', (d, i) => pathIndices.includes(i) ? 3 : 1);
+        
+        // Add path direction arrows
+        this.pathGroup.selectAll('.path-arrow')
+            .data(pathLinks)
+            .enter().append('path')
+            .attr('class', 'path-arrow')
+            .attr('d', d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const arrowLength = 10;
+                const arrowWidth = 6;
+                
+                // Position arrow at 80% of the link length
+                const t = 0.8;
+                const x = d.source.x + t * dx;
+                const y = d.source.y + t * dy;
+                
+                // Calculate arrow direction
+                const angle = Math.atan2(dy, dx);
+                const x1 = x - arrowLength * Math.cos(angle - Math.PI / 6);
+                const y1 = y - arrowLength * Math.sin(angle - Math.PI / 6);
+                const x2 = x - arrowLength * Math.cos(angle + Math.PI / 6);
+                const y2 = y - arrowLength * Math.sin(angle + Math.PI / 6);
+                
+                return `M ${x} ${y} L ${x1} ${y1} M ${x} ${y} L ${x2} ${y2}`;
+            })
+            .attr('stroke', '#ff6b35')
+            .attr('stroke-width', 2)
+            .attr('fill', 'none')
+            .style('opacity', 0)
+            .transition()
+            .duration(300)
+            .delay((d, i) => i * 100 + 150)
+            .style('opacity', 0.9);
+    }
+    
+    clearPath() {
+        this.highlightedPath = null;
+        
+        // Remove path highlights
+        this.pathGroup.selectAll('*')
+            .transition()
+            .duration(300)
+            .style('opacity', 0)
+            .remove();
+        
+        // Reset node styles
+        this.nodesGroup.selectAll('.node')
+            .transition()
+            .duration(300)
+            .style('stroke', '#fff')
+            .style('stroke-width', 1);
+    }
+    
+    updatePathPosition() {
+        if (!this.highlightedPath) return;
+        
+        // Update path link positions
+        this.pathGroup.selectAll('.path-link')
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+        
+        // Update arrow positions
+        this.pathGroup.selectAll('.path-arrow')
+            .attr('d', d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                const arrowLength = 10;
+                
+                const t = 0.8;
+                const x = d.source.x + t * dx;
+                const y = d.source.y + t * dy;
+                
+                const angle = Math.atan2(dy, dx);
+                const x1 = x - arrowLength * Math.cos(angle - Math.PI / 6);
+                const y1 = y - arrowLength * Math.sin(angle - Math.PI / 6);
+                const x2 = x - arrowLength * Math.cos(angle + Math.PI / 6);
+                const y2 = y - arrowLength * Math.sin(angle + Math.PI / 6);
+                
+                return `M ${x} ${y} L ${x1} ${y1} M ${x} ${y} L ${x2} ${y2}`;
+            });
     }
 }
 
