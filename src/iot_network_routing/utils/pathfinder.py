@@ -1,120 +1,84 @@
 import json
-import heapq
 import sys
 import argparse
+import networkx as nx
+from ..core.network import IoTNetwork
 
 class PathFinder:
     def __init__(self, network_file):
         self.network_file = network_file
         self.network = None
-        self.distance = {}
-        self.previous_nodes = {}
+        self.graph = None
         
     def load_network(self):
         """Load the network from a JSON file"""
-        with open(self.network_file, 'r') as f:
-            self.network = json.load(f)
+        self.network = IoTNetwork.load_from_file(self.network_file)
+        self.graph = self.network.graph
 
     def initialize(self):
-        """Initialize the distance and previous node structures"""
-        for node in self.network['nodes']:
-            node_id = node['eui64']
-            self.distance[node_id] = float('inf')
-            self.previous_nodes[node_id] = None
+        """Initialize the pathfinder - NetworkX handles initialization internally"""
+        if self.graph is None:
+            raise ValueError("Network must be loaded before initialization")
 
     def calculate_paths_from_source(self, source_id):
-        """Calculate shortest paths from a single source node"""
-        # Reset distances and previous nodes
-        for node in self.network['nodes']:
-            node_id = node['eui64']
-            self.distance[node_id] = float('inf')
-            self.previous_nodes[node_id] = None
+        """Calculate shortest paths from a single source node using NetworkX"""
+        if source_id not in self.graph:
+            raise ValueError(f"Source node {source_id} not found in network")
         
-        # Set source distance to 0
-        self.distance[source_id] = 0
-        priority_queue = [(0, source_id)]
-
-        while priority_queue:
-            current_distance, current_node = heapq.heappop(priority_queue)
-
-            # Skip processing if we already found a shorter path
-            if current_distance > self.distance[current_node]:
-                continue
-
-            # Iterate over neighbors to find shortest path
-            for node in self.network['nodes']:
-                if node['eui64'] == current_node:
-                    for neighbor_id in node['neighbors']:
-                        path = current_distance + 1  # Uniform weight
-                        if path < self.distance[neighbor_id]:
-                            self.distance[neighbor_id] = path
-                            self.previous_nodes[neighbor_id] = current_node
-                            heapq.heappush(priority_queue, (path, neighbor_id))
-                    break
+        # Use NetworkX's single_source_shortest_path_length for hop count
+        return nx.single_source_shortest_path_length(self.graph, source_id)
 
     def calculate_paths(self):
-        """Calculate shortest paths between all nodes"""
-        # Initialize progress tracking
-        total_nodes = len(self.network['nodes'])
-        progress_step = max(total_nodes // 10, 1)  # Show progress for every 10% completed
-
-        for index, start_node in enumerate(self.network['nodes']):
-            start_id = start_node['eui64']
-            self.distance[start_id] = 0
-            priority_queue = [(0, start_id)]
-
-            while priority_queue:
-                current_distance, current_node = heapq.heappop(priority_queue)
-
-                # Skip processing if we already found a shorter path
-                if current_distance > self.distance[current_node]:
-                    continue
-
-                # Iterate over neighbors to find shortest path
-                for node in self.network['nodes']:
-                    if node['eui64'] == current_node:
-                        for neighbor_id in node['neighbors']:
-                            path = current_distance + 1  # Uniform weight
-                            if path < self.distance[neighbor_id]:
-                                self.distance[neighbor_id] = path
-                                self.previous_nodes[neighbor_id] = current_node
-                                heapq.heappush(priority_queue, (path, neighbor_id))
-                        break
-
-            # Print progress
-            if (index + 1) % progress_step == 0:
-                print(f"Progress: {((index + 1) / total_nodes) * 100:.1f}%")
+        """Calculate shortest paths between all nodes using NetworkX"""
+        print("Calculating all-pairs shortest paths using NetworkX...")
+        
+        # Use NetworkX's all_pairs_shortest_path_length for efficiency
+        self.all_paths = dict(nx.all_pairs_shortest_path_length(self.graph))
+        
+        print("Path calculations completed.")
 
     def find_path(self, source_id, destination_id):
-        """Find shortest path between source and destination nodes"""
-        # Calculate paths from source
-        self.calculate_paths_from_source(source_id)
+        """Find shortest path between source and destination nodes using NetworkX"""
+        if source_id not in self.graph:
+            raise ValueError(f"Source node {source_id} not found in network")
+        if destination_id not in self.graph:
+            raise ValueError(f"Destination node {destination_id} not found in network")
         
-        # Check if destination is reachable
-        if self.distance[destination_id] == float('inf'):
+        try:
+            # Use NetworkX's shortest_path to get the actual path
+            path = nx.shortest_path(self.graph, source_id, destination_id)
+            # Get the path length (hop count)
+            distance = len(path) - 1
+            return path, distance
+        except nx.NetworkXNoPath:
+            # No path exists between the nodes
             return None, float('inf')
-        
-        # Reconstruct path
-        path = []
-        current = destination_id
-        while current is not None:
-            path.append(current)
-            current = self.previous_nodes[current]
-        
-        path.reverse()
-        return path, self.distance[destination_id]
 
     def save_paths(self, output_file):
         """Save the calculated paths to a JSON file"""
+        if not hasattr(self, 'all_paths'):
+            print("No paths calculated. Run calculate_paths() first.")
+            return
+        
+        # Convert NetworkX all-pairs shortest paths to the expected format
         path_data = []
-        for node in self.network['nodes']:
-            node_id = node['eui64']
-            path_entry = {
-                'eui64': node_id,
-                'distance': self.distance[node_id],
-                'previous': self.previous_nodes[node_id]
-            }
-            path_data.append(path_entry)
+        for source_id, paths in self.all_paths.items():
+            for dest_id, distance in paths.items():
+                if source_id != dest_id:  # Skip self-paths
+                    try:
+                        # Get the actual path
+                        path = nx.shortest_path(self.graph, source_id, dest_id)
+                        previous_node = path[-2] if len(path) > 1 else None
+                    except nx.NetworkXNoPath:
+                        previous_node = None
+                        
+                    path_entry = {
+                        'source': source_id,
+                        'destination': dest_id,
+                        'distance': distance,
+                        'previous': previous_node
+                    }
+                    path_data.append(path_entry)
 
         with open(output_file, 'w') as f:
             json.dump(path_data, f, indent=2)
