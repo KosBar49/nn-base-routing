@@ -120,12 +120,6 @@ def create_app(config: Optional[Dict] = None) -> Flask:
         
         return {"nodes": nodes, "links": links}
 
-    def validate_and_fix_network(network: IoTNetwork) -> str:
-        """Validate and fix network connections, return status message."""
-        if not network.validate_bidirectional_connections():
-            fixes = network.fix_bidirectional_connections()
-            return f"Fixed {fixes} unidirectional connections"
-        return "All connections are bidirectional"
 
     @app.route('/')
     def index():
@@ -153,8 +147,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
                 # Load network
                 current_network = IoTNetwork.load_from_file(temp_path)
                 
-                # Validate and fix bidirectional connections
-                validation_msg = validate_and_fix_network(current_network)
+                # NetworkX undirected graphs are inherently bidirectional
+                validation_msg = "All connections are bidirectional"
                 
                 network_data = prepare_network_data_for_d3(current_network)
                 
@@ -195,8 +189,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
             # Load sample network
             current_network = IoTNetwork.load_from_file(sample_file)
             
-            # Validate and fix bidirectional connections
-            validation_msg = validate_and_fix_network(current_network)
+            # NetworkX undirected graphs are inherently bidirectional
+            validation_msg = "All connections are bidirectional"
             
             network_data = prepare_network_data_for_d3(current_network)
             
@@ -287,8 +281,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
                 max_range=max_range
             )
             
-            # Validate and fix bidirectional connections (should be good already, but double-check)
-            validation_msg = validate_and_fix_network(current_network)
+            # NetworkX undirected graphs are inherently bidirectional
+            validation_msg = "All connections are bidirectional"
             
             network_data = prepare_network_data_for_d3(current_network)
             

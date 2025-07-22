@@ -21,25 +21,14 @@ class IoTNetwork:
         """Get all nodes as IoTNode views over the graph."""
         return [IoTNode(self.graph, node_id) for node_id in self.graph.nodes()]
     
-    @property
-    def nodes_by_eui64(self) -> Dict[str, IoTNode]:
-        """Get nodes dictionary mapped by EUI-64."""
-        return {node_id: IoTNode(self.graph, node_id) for node_id in self.graph.nodes()}
+    def get_node_by_eui64(self, eui64: str) -> Optional[IoTNode]:
+        """Get node by EUI-64 identifier."""
+        if eui64 in self.graph.nodes:
+            return IoTNode(self.graph, eui64)
+        return None
     
-    def add_node(self, node: IoTNode) -> bool:
-        """Add a node to the network."""
-        if node.eui64 in self.graph.nodes:
-            return False
-            
-        # Add node to NetworkX graph with all attributes
-        self.graph.add_node(node.eui64, 
-                           x=node.x, 
-                           y=node.y, 
-                           communication_range=node.communication_range)
-        return True
-    
-    def add_node_direct(self, eui64: str, x: float, y: float, communication_range: float) -> IoTNode:
-        """Add a node directly to the graph and return IoTNode view."""
+    def add_node(self, eui64: str, x: float, y: float, communication_range: float) -> IoTNode:
+        """Add a node to the network and return IoTNode view."""
         if eui64 in self.graph.nodes:
             raise ValueError(f"Node {eui64} already exists in network")
             
@@ -79,21 +68,6 @@ class IoTNetwork:
                     # Add edge to NetworkX graph with distance as weight
                     self.graph.add_edge(node1_id, node2_id, weight=distance)
     
-    def get_node_by_eui64(self, eui64: str) -> Optional[IoTNode]:
-        """Get node by EUI-64 identifier."""
-        if eui64 in self.graph.nodes:
-            return IoTNode(self.graph, eui64)
-        return None
-    
-    def validate_bidirectional_connections(self) -> bool:
-        """Validate that all connections are bidirectional."""
-        # NetworkX undirected graphs are inherently bidirectional
-        return True
-    
-    def fix_bidirectional_connections(self) -> int:
-        """Fix any unidirectional connections and return number of fixes made."""
-        # NetworkX undirected graphs are inherently bidirectional, no fixes needed
-        return 0
     
     def get_connection_count(self) -> int:
         """Get total number of connections in the network."""
@@ -127,7 +101,7 @@ class IoTNetwork:
         
         # First pass: create all nodes
         for node_data in data['nodes']:
-            network.add_node_direct(
+            network.add_node(
                 eui64=node_data['eui64'],
                 x=node_data['x'],
                 y=node_data['y'],

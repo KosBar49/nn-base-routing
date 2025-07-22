@@ -30,35 +30,8 @@ class IoTNode:
         self._graph = graph
         self._eui64 = eui64
     
-    @classmethod
-    def create_in_graph(cls, graph: nx.Graph, x: float, y: float, 
-                       communication_range: float = 100.0, eui64: Optional[str] = None) -> 'IoTNode':
-        """
-        Create a new node directly in the NetworkX graph.
-        
-        Args:
-            graph: NetworkX graph to add node to
-            x: X coordinate on 2D map
-            y: Y coordinate on 2D map
-            communication_range: Maximum communication range in units
-            eui64: IEEE EUI-64 identifier (generated if not provided)
-            
-        Returns:
-            IoTNode view over the created graph node
-        """
-        if eui64 is None:
-            eui64 = cls._generate_eui64()
-        
-        # Add node to graph with all attributes
-        graph.add_node(eui64, 
-                      x=x, 
-                      y=y, 
-                      communication_range=communication_range)
-        
-        return cls(graph, eui64)
-    
     @staticmethod
-    def _generate_eui64() -> str:
+    def generate_eui64() -> str:
         """Generate a random IEEE EUI-64 identifier."""
         # Generate 8 bytes (64 bits) of random data
         bytes_data = [random.randint(0, 255) for _ in range(8)]
@@ -115,48 +88,6 @@ class IoTNode:
     def can_communicate_with(self, other: 'IoTNode') -> bool:
         """Check if this node can communicate with another node based on range."""
         return self.distance_to(other) <= self.communication_range
-    
-    def add_neighbor(self, neighbor: 'IoTNode') -> bool:
-        """
-        Add a neighbor if within communication range.
-        Creates bidirectional connection automatically.
-        
-        Returns:
-            True if neighbor was added, False if out of range or already exists
-        """
-        if neighbor.eui64 == self.eui64:
-            return False
-            
-        if not self.can_communicate_with(neighbor):
-            return False
-        
-        # Check if edge already exists
-        if self._graph.has_edge(self.eui64, neighbor.eui64):
-            return False
-            
-        # Add bidirectional edge with distance as weight
-        distance = self.distance_to(neighbor)
-        self._graph.add_edge(self.eui64, neighbor.eui64, weight=distance)
-        return True
-    
-    def remove_neighbor(self, neighbor: 'IoTNode') -> bool:
-        """Remove a neighbor from the graph. Removes bidirectional connection."""
-        if self._graph.has_edge(self.eui64, neighbor.eui64):
-            self._graph.remove_edge(self.eui64, neighbor.eui64)
-            return True
-        return False
-    
-    def update_neighbors(self, all_nodes: List['IoTNode']) -> None:
-        """Update neighbor connections based on current positions and ranges."""
-        # Remove all existing edges for this node
-        edges_to_remove = list(self._graph.edges(self._eui64))
-        self._graph.remove_edges_from(edges_to_remove)
-        
-        # Add new edges based on current positions and ranges
-        for node in all_nodes:
-            if node.eui64 != self.eui64 and self.can_communicate_with(node):
-                distance = self.distance_to(node)
-                self._graph.add_edge(self.eui64, node.eui64, weight=distance)
     
     def get_neighbor_eui64s(self) -> List[str]:
         """Get list of neighbor EUI-64 identifiers."""

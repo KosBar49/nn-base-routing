@@ -46,8 +46,9 @@ def generate_random_network(n_nodes: int,
         # Use a range from 30% to 100% of max_range for variety
         comm_range = random.uniform(max_range * 0.3, max_range)
         
-        # Create node directly in the network graph
-        node = IoTNode.create_in_graph(network.graph, x, y, comm_range)
+        # Create node with generated EUI-64
+        eui64 = IoTNode.generate_eui64()
+        network.add_node(eui64, x, y, comm_range)
         
         if (i + 1) % 100 == 0 or i == n_nodes - 1:
             logger.debug("Generated %d/%d nodes", i + 1, n_nodes)
