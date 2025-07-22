@@ -11,25 +11,24 @@ from .node import IoTNode
 
 
 class IoTNetwork:
-    """Manages a collection of IoT nodes and their connections using NetworkX."""
+    """Manages a collection of IoT nodes and their connections using NetworkX as single source of truth."""
     
     def __init__(self):
-        self.graph = nx.Graph()  # Use NetworkX undirected graph for bidirectional connections
-        self._node_objects: Dict[str, IoTNode] = {}  # Keep IoTNode objects for backward compatibility
+        self.graph = nx.Graph()  # NetworkX undirected graph is the single source of truth
     
     @property
     def nodes(self) -> List[IoTNode]:
-        """Property to maintain backward compatibility with the nodes list."""
-        return list(self._node_objects.values())
+        """Get all nodes as IoTNode views over the graph."""
+        return [IoTNode(self.graph, node_id) for node_id in self.graph.nodes()]
     
     @property
     def nodes_by_eui64(self) -> Dict[str, IoTNode]:
-        """Property to maintain backward compatibility with the nodes_by_eui64 dict."""
-        return self._node_objects
+        """Get nodes dictionary mapped by EUI-64."""
+        return {node_id: IoTNode(self.graph, node_id) for node_id in self.graph.nodes()}
     
     def add_node(self, node: IoTNode) -> bool:
         """Add a node to the network."""
-        if node.eui64 in self._node_objects:
+        if node.eui64 in self.graph.nodes:
             return False
             
         # Add node to NetworkX graph with all attributes
@@ -37,34 +36,29 @@ class IoTNetwork:
                            x=node.x, 
                            y=node.y, 
                            communication_range=node.communication_range)
-        self._node_objects[node.eui64] = node
         return True
+    
+    def add_node_direct(self, eui64: str, x: float, y: float, communication_range: float) -> IoTNode:
+        """Add a node directly to the graph and return IoTNode view."""
+        if eui64 in self.graph.nodes:
+            raise ValueError(f"Node {eui64} already exists in network")
+            
+        self.graph.add_node(eui64, x=x, y=y, communication_range=communication_range)
+        return IoTNode(self.graph, eui64)
     
     def remove_node(self, eui64: str) -> bool:
         """Remove a node from the network."""
-        if eui64 not in self._node_objects:
+        if eui64 not in self.graph.nodes:
             return False
             
-        node = self._node_objects[eui64]
-        
         # Remove from NetworkX graph (this automatically removes all edges)
         self.graph.remove_node(eui64)
-        del self._node_objects[eui64]
-        
-        # Update neighbor lists in remaining node objects for backward compatibility
-        for other_node in self.nodes:
-            other_node.remove_neighbor(node)
-            
         return True
     
     def update_all_connections(self) -> None:
         """Update all node connections based on current positions and ensure bidirectional connections."""
         # Clear all existing edges in the graph
         self.graph.clear_edges()
-        
-        # Clear neighbor lists in node objects for backward compatibility
-        for node in self.nodes:
-            node.neighbors.clear()
         
         # Create bidirectional connections using NetworkX
         node_ids = list(self.graph.nodes())
@@ -84,81 +78,22 @@ class IoTNetwork:
                 if distance <= max_range:
                     # Add edge to NetworkX graph with distance as weight
                     self.graph.add_edge(node1_id, node2_id, weight=distance)
-                    
-                    # Update neighbor lists in node objects for backward compatibility
-                    node1_obj = self._node_objects[node1_id]
-                    node2_obj = self._node_objects[node2_id]
-                    if node2_obj not in node1_obj.neighbors:
-                        node1_obj.neighbors.append(node2_obj)
-                    if node1_obj not in node2_obj.neighbors:
-                        node2_obj.neighbors.append(node1_obj)
     
     def get_node_by_eui64(self, eui64: str) -> Optional[IoTNode]:
         """Get node by EUI-64 identifier."""
-        return self._node_objects.get(eui64)
+        if eui64 in self.graph.nodes:
+            return IoTNode(self.graph, eui64)
+        return None
     
     def validate_bidirectional_connections(self) -> bool:
         """Validate that all connections are bidirectional."""
-        # NetworkX undirected graphs are inherently bidirectional, but check node objects for consistency
-        for node in self.nodes:
-            for neighbor in node.neighbors:
-                if node not in neighbor.neighbors:
-                    return False
-        
-        # Also verify graph consistency with node objects
-        for node_id in self.graph.nodes():
-            node_obj = self._node_objects[node_id]
-            graph_neighbors = set(self.graph.neighbors(node_id))
-            obj_neighbors = set(neighbor.eui64 for neighbor in node_obj.neighbors)
-            if graph_neighbors != obj_neighbors:
-                return False
-        
+        # NetworkX undirected graphs are inherently bidirectional
         return True
     
     def fix_bidirectional_connections(self) -> int:
         """Fix any unidirectional connections and return number of fixes made."""
-        fixes = 0
-        
-        # Since NetworkX undirected graphs are inherently bidirectional,
-        # we mainly need to sync the node objects with the graph
-        for node_id in self.graph.nodes():
-            node_obj = self._node_objects[node_id]
-            graph_neighbors = set(self.graph.neighbors(node_id))
-            obj_neighbors = set(neighbor.eui64 for neighbor in node_obj.neighbors)
-            
-            # Add missing neighbors to node object
-            for neighbor_id in graph_neighbors - obj_neighbors:
-                neighbor_obj = self._node_objects[neighbor_id]
-                node_obj.neighbors.append(neighbor_obj)
-                fixes += 1
-            
-            # Remove extra neighbors from node object
-            for neighbor in list(node_obj.neighbors):
-                if neighbor.eui64 not in graph_neighbors:
-                    node_obj.neighbors.remove(neighbor)
-                    fixes += 1
-        
-        # Also check for unidirectional connections in node objects and fix them
-        for node in self.nodes:
-            for neighbor in list(node.neighbors):
-                if node not in neighbor.neighbors:
-                    # Check if they should still be connected
-                    if node.can_communicate_with(neighbor):
-                        neighbor.neighbors.append(node)
-                        # Ensure edge exists in graph
-                        if not self.graph.has_edge(node.eui64, neighbor.eui64):
-                            distance = node.distance_to(neighbor)
-                            self.graph.add_edge(node.eui64, neighbor.eui64, weight=distance)
-                        fixes += 1
-                    else:
-                        # Remove the unidirectional connection
-                        node.neighbors.remove(neighbor)
-                        # Remove edge from graph if it exists
-                        if self.graph.has_edge(node.eui64, neighbor.eui64):
-                            self.graph.remove_edge(node.eui64, neighbor.eui64)
-                        fixes += 1
-        
-        return fixes
+        # NetworkX undirected graphs are inherently bidirectional, no fixes needed
+        return 0
     
     def get_connection_count(self) -> int:
         """Get total number of connections in the network."""
@@ -166,9 +101,14 @@ class IoTNetwork:
     
     def to_dict(self) -> Dict:
         """Convert network to dictionary for serialization."""
+        nodes_data = []
+        for node_id in self.graph.nodes():
+            node = IoTNode(self.graph, node_id)
+            nodes_data.append(node.to_dict())
+        
         return {
-            'nodes': [node.to_dict() for node in self.nodes],
-            'total_nodes': len(self.nodes),
+            'nodes': nodes_data,
+            'total_nodes': len(self.graph.nodes),
             'total_connections': self.get_connection_count()
         }
     
@@ -187,20 +127,25 @@ class IoTNetwork:
         
         # First pass: create all nodes
         for node_data in data['nodes']:
-            node = IoTNode.from_dict(node_data)
-            network.add_node(node)
+            network.add_node_direct(
+                eui64=node_data['eui64'],
+                x=node_data['x'],
+                y=node_data['y'],
+                communication_range=node_data['communication_range']
+            )
         
         # Second pass: establish connections
         for node_data in data['nodes']:
-            node = network.get_node_by_eui64(node_data['eui64'])
+            node_id = node_data['eui64']
             for neighbor_eui64 in node_data['neighbors']:
-                neighbor = network.get_node_by_eui64(neighbor_eui64)
-                if neighbor and not network.graph.has_edge(node.eui64, neighbor.eui64):
-                    # Add edge to NetworkX graph
-                    distance = node.distance_to(neighbor)
-                    network.graph.add_edge(node.eui64, neighbor.eui64, weight=distance)
-                    # Add to node object neighbors for backward compatibility
-                    node.add_neighbor(neighbor)
+                if neighbor_eui64 in network.graph.nodes:
+                    if not network.graph.has_edge(node_id, neighbor_eui64):
+                        # Calculate distance and add edge
+                        node1_attrs = network.graph.nodes[node_id]
+                        node2_attrs = network.graph.nodes[neighbor_eui64]
+                        distance = math.sqrt((node1_attrs['x'] - node2_attrs['x'])**2 + 
+                                           (node1_attrs['y'] - node2_attrs['y'])**2)
+                        network.graph.add_edge(node_id, neighbor_eui64, weight=distance)
         
         return network
     
@@ -208,4 +153,4 @@ class IoTNetwork:
         return self.graph.number_of_nodes()
     
     def __str__(self) -> str:
-        return f"IoTNetwork({len(self.nodes)} nodes, {self.get_connection_count()} connections)"
+        return f"IoTNetwork({len(self.graph.nodes)} nodes, {self.get_connection_count()} connections)"
