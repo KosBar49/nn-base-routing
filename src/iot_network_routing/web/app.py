@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from ..core.network import IoTNetwork
 from ..core.node import IoTNode
 from ..core.generator import generate_random_network
-from ..utils.pathfinder import PathFinder
+from ..utils.pathfinder import find_shortest_path, load_network_from_file
 
 
 def create_app(config: Optional[Dict] = None) -> Flask:
@@ -349,19 +349,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
             if source_id == destination_id:
                 return jsonify({"error": "Source and destination cannot be the same node"}), 400
             
-            # Create temporary network file for pathfinder
-            temp_path = "/tmp/temp_network.json"
-            current_network.save_to_file(temp_path)
-            
-            # Use pathfinder to find path
-            pathfinder = PathFinder(temp_path)
-            pathfinder.load_network()
-            pathfinder.initialize()
-            
-            path, distance = pathfinder.find_path(source_id, destination_id)
-            
-            # Clean up temp file
-            os.remove(temp_path)
+            # Use pathfinder function to find path
+            path, distance = find_shortest_path(current_network.graph, source_id, destination_id)
             
             if path is None:
                 return jsonify({

@@ -8,6 +8,9 @@ from typing import Optional
 
 from ..core.generator import generate_random_network
 from ..core.network import IoTNetwork
+from ..utils.logging_config import setup_logging, get_logger
+
+logger = get_logger(__name__)
 
 
 def main(argv: Optional[list] = None) -> int:
@@ -35,11 +38,16 @@ def main(argv: Optional[list] = None) -> int:
                        help='Maximum communication range (default: 150.0)')
     parser.add_argument('-s', '--seed', type=int,
                        help='Random seed for reproducible results')
+    parser.add_argument('--log-level', default='INFO',
+                       help='Logging level (DEBUG, INFO, WARNING, ERROR)')
 
     args = parser.parse_args(argv)
+    
+    # Setup logging
+    setup_logging(level=args.log_level)
 
     if args.n_nodes <= 0:
-        print("Error: Number of nodes must be positive", file=sys.stderr)
+        logger.error("Number of nodes must be positive")
         return 1
 
     try:
@@ -52,15 +60,15 @@ def main(argv: Optional[list] = None) -> int:
             seed=args.seed
         )
 
-        # Print a summary
-        print(f"Generated Network: {len(network)} nodes, {network.get_connection_count()} connections")
+        # Log summary
+        logger.info("Generated network: %d nodes, %d connections", len(network), network.get_connection_count())
 
         # Save to file
         network.save_to_file(args.output)
-        print(f"Network saved to {args.output}")
+        logger.info("Network saved to %s", args.output)
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error("Failed to generate network: %s", e)
         return 1
 
     return 0

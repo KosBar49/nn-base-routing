@@ -7,6 +7,9 @@ from typing import Optional
 
 from .network import IoTNetwork
 from .node import IoTNode
+from ..utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def generate_random_network(n_nodes: int, 
@@ -32,9 +35,9 @@ def generate_random_network(n_nodes: int,
     
     network = IoTNetwork()
     
-    print(f"Generating {n_nodes} random IoT nodes...")
-    print(f"Map dimensions: {map_width} x {map_height}")
-    print(f"Communication range: up to {max_range}")
+    logger.info("Generating %d random IoT nodes", n_nodes)
+    logger.info("Map dimensions: %.1f x %.1f", map_width, map_height)
+    logger.info("Communication range: up to %.1f", max_range)
     
     # Generate nodes with random positions and ranges
     for i in range(n_nodes):
@@ -47,10 +50,11 @@ def generate_random_network(n_nodes: int,
         network.add_node(node)
         
         if (i + 1) % 100 == 0 or i == n_nodes - 1:
-            print(f"Generated {i + 1}/{n_nodes} nodes")
+            logger.debug("Generated %d/%d nodes", i + 1, n_nodes)
     
     # Update all connections based on positions and ranges
-    print("Calculating node connections...")
+    logger.info("Calculating node connections")
     network.update_all_connections()
+    logger.info("Network generation completed: %d nodes, %d connections", len(network), network.get_connection_count())
     
     return network
