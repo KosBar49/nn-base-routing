@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from ..core.network import IoTNetwork
 from ..core.node import IoTNode
 from ..core.generator import generate_random_network
-from ..utils.pathfinder import PathFinder
+from ..utils.pathfinder import find_shortest_path, load_network_from_file
 
 
 def create_app(config: Optional[Dict] = None) -> Flask:
@@ -120,12 +120,6 @@ def create_app(config: Optional[Dict] = None) -> Flask:
         
         return {"nodes": nodes, "links": links}
 
-    def validate_and_fix_network(network: IoTNetwork) -> str:
-        """Validate and fix network connections, return status message."""
-        if not network.validate_bidirectional_connections():
-            fixes = network.fix_bidirectional_connections()
-            return f"Fixed {fixes} unidirectional connections"
-        return "All connections are bidirectional"
 
     @app.route('/')
     def index():
@@ -153,8 +147,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
                 # Load network
                 current_network = IoTNetwork.load_from_file(temp_path)
                 
-                # Validate and fix bidirectional connections
-                validation_msg = validate_and_fix_network(current_network)
+                # NetworkX undirected graphs are inherently bidirectional
+                validation_msg = "All connections are bidirectional"
                 
                 network_data = prepare_network_data_for_d3(current_network)
                 
@@ -195,8 +189,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
             # Load sample network
             current_network = IoTNetwork.load_from_file(sample_file)
             
-            # Validate and fix bidirectional connections
-            validation_msg = validate_and_fix_network(current_network)
+            # NetworkX undirected graphs are inherently bidirectional
+            validation_msg = "All connections are bidirectional"
             
             network_data = prepare_network_data_for_d3(current_network)
             
@@ -287,8 +281,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
                 max_range=max_range
             )
             
-            # Validate and fix bidirectional connections (should be good already, but double-check)
-            validation_msg = validate_and_fix_network(current_network)
+            # NetworkX undirected graphs are inherently bidirectional
+            validation_msg = "All connections are bidirectional"
             
             network_data = prepare_network_data_for_d3(current_network)
             
@@ -349,19 +343,8 @@ def create_app(config: Optional[Dict] = None) -> Flask:
             if source_id == destination_id:
                 return jsonify({"error": "Source and destination cannot be the same node"}), 400
             
-            # Create temporary network file for pathfinder
-            temp_path = "/tmp/temp_network.json"
-            current_network.save_to_file(temp_path)
-            
-            # Use pathfinder to find path
-            pathfinder = PathFinder(temp_path)
-            pathfinder.load_network()
-            pathfinder.initialize()
-            
-            path, distance = pathfinder.find_path(source_id, destination_id)
-            
-            # Clean up temp file
-            os.remove(temp_path)
+            # Use pathfinder function to find path
+            path, distance = find_shortest_path(current_network.graph, source_id, destination_id)
             
             if path is None:
                 return jsonify({

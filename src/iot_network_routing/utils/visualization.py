@@ -4,6 +4,9 @@ Network visualization utilities for ASCII and matplotlib output.
 
 from typing import List, Optional
 from ..core.network import IoTNetwork
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class NetworkVisualizer:
@@ -77,11 +80,11 @@ class NetworkVisualizer:
         return [''.join(row) for row in reversed(map_grid)]
     
     def print_network_summary(self) -> None:
-        """Print a summary of the network."""
-        print(f"Network Summary:")
-        print(f"=" * 50)
-        print(f"Total nodes: {len(self.network)}")
-        print(f"Total connections: {self.network.get_connection_count()}")
+        """Log a summary of the network."""
+        logger.info("Network Summary:")
+        logger.info("=" * 50)
+        logger.info("Total nodes: %d", len(self.network))
+        logger.info("Total connections: %d", self.network.get_connection_count())
         
         if not self.network.nodes:
             return
@@ -93,10 +96,10 @@ class NetworkVisualizer:
         min_connections = min(connection_counts)
         isolated_nodes = sum(1 for count in connection_counts if count == 0)
         
-        print(f"Average connections per node: {avg_connections:.2f}")
-        print(f"Max connections: {max_connections}")
-        print(f"Min connections: {min_connections}")
-        print(f"Isolated nodes: {isolated_nodes}")
+        logger.info("Average connections per node: %.2f", avg_connections)
+        logger.info("Max connections: %d", max_connections)
+        logger.info("Min connections: %d", min_connections)
+        logger.info("Isolated nodes: %d", isolated_nodes)
         
         # Communication range statistics
         ranges = [node.communication_range for node in self.network.nodes]
@@ -104,32 +107,31 @@ class NetworkVisualizer:
         max_range = max(ranges)
         min_range = min(ranges)
         
-        print(f"\nCommunication Range Statistics:")
-        print(f"Average range: {avg_range:.2f}")
-        print(f"Max range: {max_range:.2f}")
-        print(f"Min range: {min_range:.2f}")
+        logger.info("Communication Range Statistics:")
+        logger.info("Average range: %.2f", avg_range)
+        logger.info("Max range: %.2f", max_range)
+        logger.info("Min range: %.2f", min_range)
     
     def print_node_details(self, limit: int = 10) -> None:
-        """Print detailed information about individual nodes."""
-        print(f"\nNode Details (showing first {limit} nodes):")
-        print(f"=" * 80)
+        """Log detailed information about individual nodes."""
+        logger.info("Node Details (showing first %d nodes):", limit)
+        logger.info("=" * 80)
         
         for i, node in enumerate(self.network.nodes[:limit]):
-            print(f"Node {i+1}: {node.eui64}")
-            print(f"  Position: ({node.x:.2f}, {node.y:.2f})")
-            print(f"  Range: {node.communication_range:.2f}")
-            print(f"  Neighbors: {len(node.neighbors)}")
+            logger.info("Node %d: %s", i+1, node.eui64)
+            logger.info("  Position: (%.2f, %.2f)", node.x, node.y)
+            logger.info("  Range: %.2f", node.communication_range)
+            logger.info("  Neighbors: %d", len(node.neighbors))
             
             if node.neighbors:
-                print(f"  Connected to:")
+                logger.info("  Connected to:")
                 for neighbor in node.neighbors[:5]:  # Show first 5 neighbors
                     distance = node.distance_to(neighbor)
-                    print(f"    {neighbor.eui64} (distance: {distance:.2f})")
+                    logger.info("    %s (distance: %.2f)", neighbor.eui64, distance)
                 if len(node.neighbors) > 5:
-                    print(f"    ... and {len(node.neighbors) - 5} more")
+                    logger.info("    ... and %d more", len(node.neighbors) - 5)
             else:
-                print(f"  No connections (isolated node)")
-            print()
+                logger.info("  No connections (isolated node)")
     
     def matplotlib_plot(self, output_file: Optional[str] = None) -> None:
         """
@@ -143,11 +145,11 @@ class NetworkVisualizer:
             import matplotlib.patches as patches
             from matplotlib.collections import LineCollection
         except ImportError:
-            print("Warning: matplotlib not available. Skipping graphical visualization.")
+            logger.warning("matplotlib not available. Skipping graphical visualization")
             return
         
         if not self.network.nodes:
-            print("No nodes to visualize")
+            logger.warning("No nodes to visualize")
             return
         
         fig, ax = plt.subplots(figsize=(12, 10))
@@ -201,6 +203,6 @@ class NetworkVisualizer:
         
         if output_file:
             plt.savefig(output_file, dpi=300, bbox_inches='tight')
-            print(f"Visualization saved to {output_file}")
+            logger.info("Visualization saved to %s", output_file)
         else:
             plt.show()

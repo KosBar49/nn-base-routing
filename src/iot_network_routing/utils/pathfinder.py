@@ -1,135 +1,129 @@
 import json
-import heapq
 import sys
 import argparse
+import networkx as nx
+from typing import Dict, List, Tuple, Optional
+from ..core.network import IoTNetwork
+from .logging_config import setup_logging, get_logger
 
-class PathFinder:
-    def __init__(self, network_file):
-        self.network_file = network_file
-        self.network = None
-        self.distance = {}
-        self.previous_nodes = {}
+logger = get_logger(__name__)
+
+
+def find_shortest_path(graph: nx.Graph, source_id: str, destination_id: str) -> Tuple[Optional[List[str]], int]:
+    """Find shortest path between two nodes.
+    
+    Returns:
+        Tuple of (path, distance) where path is list of node IDs or None if no path exists,
+        and distance is hop count or float('inf') if no path exists.
+    """
+    if source_id not in graph:
+        raise ValueError(f"Source node {source_id} not found in graph")
+    if destination_id not in graph:
+        raise ValueError(f"Destination node {destination_id} not found in graph")
+    
+    try:
+        path = nx.shortest_path(graph, source_id, destination_id)
+        return path, len(path) - 1
+    except nx.NetworkXNoPath:
+        return None, float('inf')
+
+
+def calculate_paths_from_source(graph: nx.Graph, source_id: str) -> Dict[str, List[str]]:
+    """Calculate shortest paths from a single source node to all reachable nodes.
+    
+    Returns:
+        Dictionary mapping destination node IDs to path lists.
+    """
+    if source_id not in graph:
+        raise ValueError(f"Source node {source_id} not found in graph")
+    
+    return nx.single_source_shortest_path(graph, source_id)
+
+
+def calculate_all_shortest_paths(graph: nx.Graph) -> Dict[str, Dict[str, List[str]]]:
+    """Calculate shortest paths between all pairs of nodes.
+    
+    Returns:
+        Nested dictionary: {source_id: {dest_id: [path]}}
+    """
+    return dict(nx.all_pairs_shortest_path(graph))
+
+
+def format_paths_for_export(all_paths: Dict[str, Dict[str, List[str]]]) -> List[Dict]:
+    """Transform all-pairs shortest paths into export format.
+    
+    Args:
+        all_paths: Result from calculate_all_shortest_paths()
         
-    def load_network(self):
-        """Load the network from a JSON file"""
-        with open(self.network_file, 'r') as f:
-            self.network = json.load(f)
+    Returns:
+        List of path entries with source, destination, distance, and previous node.
+    """
+    path_data = []
+    for source_id, paths in all_paths.items():
+        for dest_id, path in paths.items():
+            if source_id != dest_id:  # Skip self-paths
+                distance = len(path) - 1 if path else float('inf')
+                previous_node = path[-2] if len(path) > 1 else None
+                    
+                path_entry = {
+                    'source': source_id,
+                    'destination': dest_id,
+                    'distance': distance,
+                    'previous': previous_node
+                }
+                path_data.append(path_entry)
+    
+    return path_data
 
-    def initialize(self):
-        """Initialize the distance and previous node structures"""
-        for node in self.network['nodes']:
-            node_id = node['eui64']
-            self.distance[node_id] = float('inf')
-            self.previous_nodes[node_id] = None
 
-    def calculate_paths_from_source(self, source_id):
-        """Calculate shortest paths from a single source node"""
-        # Reset distances and previous nodes
-        for node in self.network['nodes']:
-            node_id = node['eui64']
-            self.distance[node_id] = float('inf')
-            self.previous_nodes[node_id] = None
-        
-        # Set source distance to 0
-        self.distance[source_id] = 0
-        priority_queue = [(0, source_id)]
-
-        while priority_queue:
-            current_distance, current_node = heapq.heappop(priority_queue)
-
-            # Skip processing if we already found a shorter path
-            if current_distance > self.distance[current_node]:
-                continue
-
-            # Iterate over neighbors to find shortest path
-            for node in self.network['nodes']:
-                if node['eui64'] == current_node:
-                    for neighbor_id in node['neighbors']:
-                        path = current_distance + 1  # Uniform weight
-                        if path < self.distance[neighbor_id]:
-                            self.distance[neighbor_id] = path
-                            self.previous_nodes[neighbor_id] = current_node
-                            heapq.heappush(priority_queue, (path, neighbor_id))
-                    break
-
-    def calculate_paths(self):
-        """Calculate shortest paths between all nodes"""
-        # Initialize progress tracking
-        total_nodes = len(self.network['nodes'])
-        progress_step = max(total_nodes // 10, 1)  # Show progress for every 10% completed
-
-        for index, start_node in enumerate(self.network['nodes']):
-            start_id = start_node['eui64']
-            self.distance[start_id] = 0
-            priority_queue = [(0, start_id)]
-
-            while priority_queue:
-                current_distance, current_node = heapq.heappop(priority_queue)
-
-                # Skip processing if we already found a shorter path
-                if current_distance > self.distance[current_node]:
-                    continue
-
-                # Iterate over neighbors to find shortest path
-                for node in self.network['nodes']:
-                    if node['eui64'] == current_node:
-                        for neighbor_id in node['neighbors']:
-                            path = current_distance + 1  # Uniform weight
-                            if path < self.distance[neighbor_id]:
-                                self.distance[neighbor_id] = path
-                                self.previous_nodes[neighbor_id] = current_node
-                                heapq.heappush(priority_queue, (path, neighbor_id))
-                        break
-
-            # Print progress
-            if (index + 1) % progress_step == 0:
-                print(f"Progress: {((index + 1) / total_nodes) * 100:.1f}%")
-
-    def find_path(self, source_id, destination_id):
-        """Find shortest path between source and destination nodes"""
-        # Calculate paths from source
-        self.calculate_paths_from_source(source_id)
-        
-        # Check if destination is reachable
-        if self.distance[destination_id] == float('inf'):
-            return None, float('inf')
-        
-        # Reconstruct path
-        path = []
-        current = destination_id
-        while current is not None:
-            path.append(current)
-            current = self.previous_nodes[current]
-        
-        path.reverse()
-        return path, self.distance[destination_id]
-
-    def save_paths(self, output_file):
-        """Save the calculated paths to a JSON file"""
-        path_data = []
-        for node in self.network['nodes']:
-            node_id = node['eui64']
-            path_entry = {
-                'eui64': node_id,
-                'distance': self.distance[node_id],
-                'previous': self.previous_nodes[node_id]
-            }
-            path_data.append(path_entry)
-
+def save_paths_to_file(path_data: List[Dict], output_file: str) -> None:
+    """Save path data to a JSON file."""
+    try:
         with open(output_file, 'w') as f:
             json.dump(path_data, f, indent=2)
+    except IOError as e:
+        raise IOError(f"Failed to write to {output_file}: {e}")
 
-if __name__ == '__main__':
+
+def load_network_from_file(network_file: str) -> IoTNetwork:
+    """Load network from file."""
+    try:
+        return IoTNetwork.load_from_file(network_file)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        raise IOError(f"Failed to load network from {network_file}: {e}")
+
+
+def main() -> None:
+    """CLI entry point for pathfinding."""
     parser = argparse.ArgumentParser(description='Calculate shortest paths in IoT network')
     parser.add_argument('input_file', help='Path to the network JSON file')
     parser.add_argument('-o', '--output', default='paths.json', help='Output file path (default: paths.json)')
+    parser.add_argument('--log-level', default='INFO', help='Logging level (DEBUG, INFO, WARNING, ERROR)')
     
     args = parser.parse_args()
+    
+    # Setup logging
+    setup_logging(level=args.log_level)
 
-    path_finder = PathFinder(args.input_file)
-    path_finder.load_network()
-    path_finder.initialize()
-    path_finder.calculate_paths()
-    path_finder.save_paths(args.output)
+    try:
+        logger.info("Loading network from %s", args.input_file)
+        network = load_network_from_file(args.input_file)
+        
+        logger.info("Calculating all-pairs shortest paths for %d nodes", len(network.graph.nodes))
+        all_paths = calculate_all_shortest_paths(network.graph)
+        
+        logger.info("Formatting path data for export")
+        path_data = format_paths_for_export(all_paths)
+        
+        logger.info("Saving %d paths to %s", len(path_data), args.output)
+        save_paths_to_file(path_data, args.output)
+        
+        logger.info("Completed successfully: %d paths calculated and saved", len(path_data))
+        
+    except (ValueError, IOError) as e:
+        logger.error("Failed to process paths: %s", e)
+        sys.exit(1)
 
-    print("Path calculations completed.")
+
+if __name__ == '__main__':
+    main()
